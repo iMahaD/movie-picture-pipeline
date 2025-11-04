@@ -14,9 +14,8 @@ jobs:
       EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
       ECR_REPO: ${{ secrets.ECR_REPOSITORY_FRONTEND }}
       IMAGE_TAG: ${{ github.sha }}
-      # For production you’d use the real backend URL (ELB hostname).
-      # Start simple: we'll set the API URL via deployment env after build.
-      REACT_APP_MOVIE_API_URL: "http://backend.default.svc.cluster.local:5000"
+      # use the public backend URL from a secret
+      REACT_APP_MOVIE_API_URL: ${{ secrets.REACT_APP_MOVIE_API_URL }}
 
     steps:
       - name: Checkout
@@ -36,11 +35,10 @@ jobs:
       - name: Build & push image
         working-directory: starter/frontend
         run: |
-          # Build-time arg wired in your Dockerfile
           docker build \
             --build-arg REACT_APP_MOVIE_API_URL="${REACT_APP_MOVIE_API_URL}" \
-            -t $ECR_REPO:${IMAGE_TAG} .
-          docker push $ECR_REPO:${IMAGE_TAG}
+            -t "$ECR_REPO:${IMAGE_TAG}" .
+          docker push "$ECR_REPO:${IMAGE_TAG}"
 
       - name: Update kubeconfig
         run: |
@@ -51,7 +49,7 @@ jobs:
         working-directory: starter/frontend/k8s
         run: |
           kubectl apply -k .
-          kubectl set image deployment/frontend frontend=$ECR_REPO:${IMAGE_TAG}
+          kubectl set image deployment/frontend frontend="$ECR_REPO:${IMAGE_TAG}"
           kubectl rollout status deployment/frontend --timeout=120s
 
       - name: Show services
